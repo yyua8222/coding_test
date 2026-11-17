@@ -25,18 +25,14 @@ def load_vocab(path: str | Path) -> set[str]:
 
     Multi-word entries (e.g., "according to", "all right", "no one") are
     split on whitespace so that each component word is independently allowed.
-    Hyphenated entries (e.g., "long-term", "old-fashioned") are kept whole;
-    callers may also choose to allow component splits if desired.
+    Hyphenated entries (e.g., "long-term", "old-fashioned") are kept whole.
+    Apostrophe forms are excluded so contractions cannot pass validation.
     """
     p = Path(path)
     raw_lines = [ln.strip().lower() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
     vocab: set[str] = set()
     for entry in raw_lines:
-        # Keep the entry as-is (e.g., "long-term").
-        vocab.add(entry)
-        # Also include each space-separated component (e.g., "all", "right").
-        for part in entry.split():
-            vocab.add(part)
+        vocab.update(part for part in entry.split() if "'" not in part)
     return vocab
 
 
@@ -70,3 +66,8 @@ def find_out_of_vocab_words(text: str, vocab: set[str]) -> list[str]:
 
 def count_words(text: str) -> int:
     return sum(1 for _ in WORD_RE.finditer(text))
+
+
+def validate_output(text: str, vocab: set[str]) -> bool:
+    """Return whether text obeys both the character and vocabulary policies."""
+    return not find_forbidden_chars(text) and not find_out_of_vocab_words(text, vocab)
